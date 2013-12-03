@@ -44,25 +44,39 @@ module Dropbox
         Dropbox::API::Object.convert(results, self)
       end
 
-      def delta(cursor=nil)
+      def delta(cursor=nil, options={})
+        options.reverse_merge!(all: false, convert: false)
+
         entries  = []
         has_more = true
-        params   = cursor ? {:cursor => cursor} : {}
-        while has_more
+        params   = cursor ? {cursor: cursor} : {}
+
+        if options[:all]
+          while has_more
+            response        = raw.delta(params)
+            params[:cursor] = response['cursor']
+            has_more        = response['has_more']
+            entries.push     *response['entries']
+          end
+        else
           response        = raw.delta(params)
           params[:cursor] = response['cursor']
           has_more        = response['has_more']
           entries.push     *response['entries']
         end
 
-        files = entries.map do |entry|
-          entry.last || {:is_deleted => true, :path => entry.first}
+        if options[:convert]
+          files = entries.map do |entry|
+            entry.last || {:is_deleted => true, :path => entry.first}
+          end
+          files = Dropbox::API::Object.convert(files, self)
+        else
+          files = entries
         end
 
-        Delta.new(params[:cursor], Dropbox::API::Object.convert(files, self))
+        Delta.new(params[:cursor], files, has_more)
       end
 
     end
-
   end
 end
