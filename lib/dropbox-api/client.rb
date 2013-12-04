@@ -74,7 +74,7 @@ module Dropbox
           files = entries
         end
 
-        Delta.new(params[:cursor], files, has_more)
+        Delta.new(params[:cursor], files, has_more, response['reset'])
       end
 
     end
